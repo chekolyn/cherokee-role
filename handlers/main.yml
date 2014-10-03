@@ -1,0 +1,5 @@
+- name: restart cherokee
+  service: name=cherokee state=restarted
+
+- name: reload cherokee
+  service: name=cherokee state=reloaded

@@ -1,0 +1,102 @@
+# Install Cherokee Web Server from source
+
+# Set Variables based on Family:
+- include_vars: "{{ansible_os_family}}.yml"
+
+- name: Debian required packages for compilation
+  apt:  pkg={{','.join(cherokee_compile_pkgs)}} state=present update_cache=yes
+  when: ansible_os_family == 'Debian'
+
+# RedHat ships with an old autoconf:
+- name: autoconf down
+  get_url: 
+    url: "http://ftp.gnu.org/gnu/autoconf/autoconf-2.69.tar.gz"
+    dest: "/usr/local/src/autoconf.tar.gz"
+  register: autoconf_down
+  when: ansible_os_family == 'RedHat'
+  
+- name: autoconf untar
+  shell: tar -zxf autoconf.tar.gz chdir=/usr/local/src/
+  when: autoconf_down.changed
+
+- name: autoconf configure
+  shell: ./configure chdir=/usr/local/src/autoconf-2.69
+  when: autoconf_down.changed
+
+- name: autoconf make
+  shell: make chdir=/usr/local/src/autoconf-2.69
+  when: autoconf_down.changed
+
+- name: autoconf make install
+  shell: make install chdir=/usr/local/src/autoconf-2.69
+  when: autoconf_down.changed
+  
+# Main Cherokee Compilation Tasks:
+- name: webserver repo clone
+  git: >
+    repo=https://github.com/cherokee/webserver.git
+    dest=/usr/local/src/cherokee
+    version=v1.2.104
+    recursive=yes
+  register: cherokee_down
+  
+- name: webserver autoconfig
+  shell: ./autogen.sh --prefix=/usr --sysconfdir=/etc --localstatedir=/var
+          chdir=/usr/local/src/cherokee
+  when: cherokee_down.changed
+  
+- name: webserver make
+  shell: make chdir=/usr/local/src/cherokee
+  when: cherokee_down.changed
+  
+- name: webserver make install
+  shell: make install chdir=/usr/local/src/cherokee
+  when: cherokee_down.changed
+  
+# Cherokee Configuration:
+- name: config folder
+  file: path=/etc/cherokee mode=775 owner=root group=root state=directory
+
+- name: config file
+  template: >
+    src=cherokee.conf.j2 
+    dest=/etc/cherokee/cherokee.conf 
+    owner=root group=root mode=0640 
+  notify: reload cherokee
+    
+- name: initd file
+  template: >
+    src={{ansible_os_family}}/etc.init.d.cherokee
+    dest=/etc/init.d/cherokee
+    owner=root group=root mode=0755 
+  notify: restart cherokee
+
+- name: logrotate file
+  template: >
+    src={{ansible_os_family}}/etc.logrotate.d.cherokee
+    dest=/etc/logrotate.d/cherokee
+    owner=root group=root mode=0644 
+
+- name: graphs folder
+  file: >
+    path=/var/lib/cherokee/graphs 
+    owner={{cherokee_user}} group={{ cherokee_group }} mode=0775 
+    state=directory
+  
+- name: log folder
+  file: >
+    path=/var/log/cherokee 
+    owner=root group=root mode=0775 
+    state=directory
+  
+# ufw rule:
+- name: ufw adding rule
+  template: >
+    src={{ansible_os_family}}/etc.ufw.applications.d.cherokee
+    dest=/etc/ufw/applications.d/cherokee
+    owner=root group=root mode=0644 
+  when: ansible_distribution == 'Ubuntu'
+  
+# Cherokee Start 
+- name: make sure cherokee has started
+  service: name=cherokee state=started

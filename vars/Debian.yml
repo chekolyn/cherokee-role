@@ -1,0 +1,18 @@
+cherokee_compile_pkgs:
+  - autoconf
+  - automake
+  - libtool
+  - make
+  - gettext
+  - git
+  - libssl-dev
+  - rrdtool
+  - screen
+cherokee_user: 'www-data'
+cherokee_group: 'www-data'
+cherokee_panic_action: '/usr/share/cherokee/cherokee-panic'
+cherokee_default_document_root: '/var/www'
+cherokee_logger_access_filename: '/var/log/cherokee/cherokee.access'
+cherokee_error_writter_filename: '/var/log/cherokee/cherokee.error'
+cherokee_icons_dir: '/icons'
+cherokee_icons_dir_path: '/usr/share/cherokee/icons'
